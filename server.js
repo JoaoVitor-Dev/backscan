@@ -1,35 +1,46 @@
 // server.js
 const express = require("express");
-const bodyParser = require("body-parser");
-const cors = require("cors");
 const axios = require("axios");
+const bodyParser = require("body-parser");
 
 const app = express();
-app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-const TELEGRAM_BOT_TOKEN = "BOT-TOKEN"; // Substitua pelo token do seu bot
-const TELEGRAM_CHAT_ID = "CHAT-TOKEN"; // Substitua pelo ID do chat (ou grupo) para onde quer enviar
+// Variáveis de ambiente
+const BOT_TOKEN = process.env.BOT_TOKEN; // token do BotFather
+const CHAT_ID = process.env.CHAT_ID;     // ID do grupo ou usuário que receberá as mensagens
+const PORT = process.env.PORT || 3000;   // Render define a porta automaticamente
 
+// Endpoint para receber localização do front-end
 app.post("/send-location", async (req, res) => {
-  const { latitude, longitude, maps } = req.body;
-
-  const message = `A localização do usuário é:\nLatitude: ${latitude}\nLongitude: ${longitude}\nMaps: ${maps}`;
-
   try {
-    // Envia a localização para o Telegram
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: TELEGRAM_CHAT_ID,
-      text: message,
+    const { latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: "Latitude e longitude são obrigatórios" });
+    }
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendLocation`;
+
+    await axios.post(url, {
+      chat_id: CHAT_ID,
+      latitude: latitude,
+      longitude: longitude,
     });
 
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, message: "Erro ao enviar a localização para o Telegram." });
+    res.json({ success: true, message: "Localização enviada com sucesso!" });
+  } catch (err) {
+    console.error("Erro ao enviar localização:", err.response?.data || err.message);
+    res.status(500).json({ error: "Erro ao enviar localização" });
   }
 });
 
-app.listen(8088, () => {
-  console.log("Servidor rodando na porta 8088");
+// Endpoint raiz (teste rápido)
+app.get("/", (req, res) => {
+  res.send("✅ Bot BackScan rodando no Render!");
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
